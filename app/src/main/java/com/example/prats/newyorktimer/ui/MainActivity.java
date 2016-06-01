@@ -1,8 +1,11 @@
 package com.example.prats.newyorktimer.ui;
 
+import android.content.SharedPreferences;
 import android.os.Bundle;
+import android.preference.PreferenceManager;
 import android.support.v7.app.AppCompatActivity;
 import android.view.View;
+import android.widget.ProgressBar;
 
 import com.example.prats.newyorktimer.MyApplication;
 import com.example.prats.newyorktimer.R;
@@ -10,11 +13,14 @@ import com.example.prats.newyorktimer.data.Values;
 import com.example.prats.newyorktimer.io.Doc;
 import com.example.prats.newyorktimer.io.MainResponse;
 import com.example.prats.newyorktimer.util.ArticleAdapter;
+import com.example.prats.newyorktimer.util.StringUtils;
 import com.google.gson.Gson;
 import com.lorentzos.flingswipe.SwipeFlingAdapterView;
 
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.HashSet;
 
 import okhttp3.Call;
 import okhttp3.Callback;
@@ -30,6 +36,10 @@ public class MainActivity extends AppCompatActivity {
     static ArrayList<Doc> newsArrayList;
     static ArticleAdapter arrayAdapter;
     static int currentPage = 0;
+    static HashSet<String> newsDeskSet;
+    static SharedPreferences sharedPrefs;
+
+    public ProgressBar progressBar;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -42,11 +52,25 @@ public class MainActivity extends AppCompatActivity {
 
         newsArrayList = new ArrayList<>();
         arrayAdapter = new ArticleAdapter(this, newsArrayList);
+        newsDeskSet = new HashSet<>();
 
         //add the view via xml or programmatically
         final SwipeFlingAdapterView flingContainer = (SwipeFlingAdapterView) findViewById(R.id.frame);
 
+        progressBar = (ProgressBar) findViewById(R.id.progressBar);
+
         flingContainer.setAdapter(arrayAdapter);
+
+        sharedPrefs = PreferenceManager.getDefaultSharedPreferences(getApplicationContext());
+        if (sharedPrefs.contains(Values.PREF_NEWSDESK)) {
+            newsDeskSet = (HashSet<String>) sharedPrefs.getStringSet(Values.PREF_NEWSDESK, new HashSet<String>());
+        } else {
+            newsDeskSet = new HashSet<>(Arrays.asList(Values.newsDesks));
+
+            SharedPreferences.Editor editor = sharedPrefs.edit();
+            editor.putStringSet(Values.PREF_NEWSDESK, newsDeskSet);
+            editor.commit();
+        }
 
         populateArticles();
 
@@ -65,11 +89,23 @@ public class MainActivity extends AppCompatActivity {
                 //You also have access to the original object.
                 //If you want to use it just cast it (String) dataObject
 //                makeToast(MainActivity.this, "Disliked!");
+                Timber.d("Left card: " + new Gson().toJson(dataObject));
+
+                String newsDesk = ((Doc) dataObject).news_desk;
+
+                if (newsDesk != null
+                        && !newsDesk.equals("")
+                        && !newsDesk.equals("null")
+                        && newsDeskSet.contains(newsDesk)) {
+                    newsDeskSet.remove(newsDesk);
+                    saveNewsDesk();
+                }
             }
 
             @Override
             public void onRightCardExit(Object dataObject) {
 //                makeToast(MainActivity.this, "Liked!");
+                Timber.d("Right card: " + new Gson().toJson(dataObject));
             }
 
             @Override
@@ -91,6 +127,14 @@ public class MainActivity extends AppCompatActivity {
             @Override
             public void onItemClicked(int itemPosition, Object dataObject) {
 //                makeToast(MainActivity.this, "Clicked!");
+//                String newsUrl = ((Doc) dataObject).web_url;
+
+//                if (newsUrl != null
+//                        && !newsUrl.equals("")) {
+//                    Intent intent = new Intent(MainActivity.this, ArticleActivity.class);
+//                    intent.putExtra(ArticleActivity.EXTRA_URL, newsUrl);
+//                    startActivity(intent);
+//                }
             }
         });
     }
@@ -102,12 +146,19 @@ public class MainActivity extends AppCompatActivity {
     public void populateArticles() {
         currentPage++;
 
+        String currentNewsDesk = StringUtils.join(newsDeskSet.toArray(new String[newsDeskSet.size()]), " ", "\"");
+
+        Timber.d("News desk: " + currentNewsDesk);
+
         HttpUrl.Builder urlBuilder = HttpUrl
-                .parse("http://api.nytimes.com/svc/search/v2/articlesearch.json")
+                .parse(Values.NYTIMES_ARTICLE_SEARCH_ENDPOINT)
                 .newBuilder();
+
         urlBuilder.addQueryParameter("api-key", Values.NYTIMES_API_KEY);
         urlBuilder.addQueryParameter("sort", "newest");
         urlBuilder.addQueryParameter("page", Integer.toString(currentPage));
+        urlBuilder.addQueryParameter("fq", "news_desk:(" + currentNewsDesk + ")");
+
         String url = urlBuilder.build().toString();
 
         Timber.d("Url built: " + url);
@@ -145,6 +196,7 @@ public class MainActivity extends AppCompatActivity {
                             @Override
                             public void run() {
                                 try {
+                                    progressBar.setVisibility(View.GONE);
                                     arrayAdapter.notifyDataSetChanged();
                                 } catch (Exception e) {
                                     Timber.e(e, "Cant reload");
@@ -153,5 +205,12 @@ public class MainActivity extends AppCompatActivity {
                         });
                     }
                 });
+    }
+
+    public void saveNewsDesk() {
+        sharedPrefs = PreferenceManager.getDefaultSharedPreferences(getApplicationContext());
+        SharedPreferences.Editor editor = sharedPrefs.edit();
+        editor.putStringSet(Values.PREF_NEWSDESK, newsDeskSet);
+        editor.commit();
     }
 }

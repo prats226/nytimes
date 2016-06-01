@@ -43,8 +43,8 @@ public class ArticleAdapter extends BaseAdapter {
 
     @Override
     public Object getItem(int position) {
-//        return articleList.get(position);
-        return position;
+        return articleList.get(position);
+//        return position;
     }
 
     @Override

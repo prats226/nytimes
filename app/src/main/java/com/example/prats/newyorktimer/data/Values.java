@@ -9,4 +9,8 @@ public class Values {
     public static final String NYTIMES_API_KEY = "db7eee4fe8c84f7fbad659d158712948";
 
     public static final String NYTIMES_IMAGE_REPOSITORY = "http://graphics8.nytimes.com/";
+
+    public static final String NYTIMES_ARTICLE_SEARCH_ENDPOINT = "http://api.nytimes.com/svc/search/v2/articlesearch.json";
+
+    public static final String PREF_NEWSDESK = "newsdesk";
 }
