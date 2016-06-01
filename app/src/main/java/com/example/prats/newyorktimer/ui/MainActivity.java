@@ -157,7 +157,8 @@ public class MainActivity extends AppCompatActivity {
         urlBuilder.addQueryParameter("api-key", Values.NYTIMES_API_KEY);
         urlBuilder.addQueryParameter("sort", "newest");
         urlBuilder.addQueryParameter("page", Integer.toString(currentPage));
-        urlBuilder.addQueryParameter("fq", "news_desk:(" + currentNewsDesk + ")");
+        urlBuilder.addQueryParameter("fq", "source:(\"The New York Times\") AND news_desk:("
+                + currentNewsDesk + ")");
 
         String url = urlBuilder.build().toString();
 
